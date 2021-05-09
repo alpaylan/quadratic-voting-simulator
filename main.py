@@ -54,18 +54,91 @@ def simulation_individual_simple_normal():
     vote = get_closest_quad_value(store['vote_credits'])
     for bill in store['bills']:
         for delegate in store['delegates']:
-            if delegate['party'] == 'majority':
-                if bill['position'] >= delegate['position']:
+            if delegate['bills'][bill['name']]['direction'] == 'left':
+                if 50 <= delegate['bills'][bill['name']]['position']:
                     bill['vote'] += vote
                 else:
                     bill['vote'] -= vote
-            if delegate['party'] == 'minority':
-                if bill['position'] <= delegate['position']:
+            if delegate['bills'][bill['name']]['direction'] == 'right':
+                if 50 > delegate['bills'][bill['name']]['position']:
                     bill['vote'] += vote
                 else:
                     bill['vote'] -= vote
 
+
         print(f"Bill {bill['name']} is voted {bill['vote']}")
+
+
+def simulation_individual_proportional_normal():
+    global store
+    for bill in store['bills']:
+        for delegate in store['delegates']:
+            current_difference = abs(delegate['bills'][bill['name']]['position'] - 50)
+            total_difference = 0
+            for b in store['bills']:
+                total_difference += abs(delegate['bills'][b['name']]['position'] - 50)
+            vote = get_closest_quad_value(store['vote_credits']*current_difference/total_difference)
+            delegate['bills'][bill['name']]['vote'] = vote
+            if delegate['bills'][bill['name']]['direction'] == 'left':
+                if 50 <= delegate['bills'][bill['name']]['position']:
+                    bill['vote'] += vote
+                else:
+                    bill['vote'] -= vote
+            if delegate['bills'][bill['name']]['direction'] == 'right':
+                if 50 > delegate['bills'][bill['name']]['position']:
+                    bill['vote'] += vote
+                else:
+                    bill['vote'] -= vote
+
+
+        print(f"Bill {bill['name']} is voted {bill['vote']}")
+
+
+def position_print(bill, param):
+    global store
+    pos_str = "\n"
+    for k, v in store[param]['bills'][bill['name']].items():
+        pos_str += f"{k.capitalize()}: {v}\n"
+    return pos_str
+
+
+def result_print(bill):
+    global store
+    print("\n___________________Bill Info___________________")
+    print(f"Congress Voted on {bill['name']}")
+    print(f"Minority position on {bill['name']}:{position_print(bill, 'minority_position')}", end="")
+    print(f"Majority position on {bill['name']}:{position_print(bill, 'majority_position')}", end="")
+    print(f"{bill['name']} Bill was voted {bill['vote']}")
+
+
+def simulation_individual_maximize_normal():
+    global store
+    for bill in store['bills']:
+        for delegate in store['delegates']:
+            max_bill = bill
+            max_diff = 0
+            for b in store['bills']:
+                cur_diff = abs(delegate['bills'][b['name']]['position'] - 50)
+                if cur_diff > max_diff:
+                    max_diff = cur_diff
+                    max_bill = b
+            if bill == max_bill:
+                vote = get_closest_quad_value(store['vote_credits'])
+            else:
+                vote = 0
+            delegate['bills'][bill['name']]['vote'] = vote
+            if delegate['bills'][bill['name']]['direction'] == 'left':
+                if 50 <= delegate['bills'][bill['name']]['position']:
+                    bill['vote'] += vote
+                else:
+                    bill['vote'] -= vote
+            if delegate['bills'][bill['name']]['direction'] == 'right':
+                if 50 > delegate['bills'][bill['name']]['position']:
+                    bill['vote'] += vote
+                else:
+                    bill['vote'] -= vote
+
+        result_print(bill)
 
 
 def generate_delegates():
@@ -75,32 +148,72 @@ def generate_delegates():
     if store['majority_position']['type'] == "constant":
         pass
     elif store['majority_position']['type'] == "normal":
-        mean = store['majority_position']['params']['mean']
-        std = math.sqrt(store['majority_position']['params']['variance'])
-        for delegate in range(store['majority']):
-            normal_dist = random.gauss(mean, std)
-            store['delegates'].append({'party': 'majority', 'position': normal_dist})
+        for d in range(store['majority']):
+            delegate = {'party': 'majority', 'bills': {}}
+
+            for name, params in store['majority_position']['bills'].items():
+                mean = params['mean']
+                std = math.sqrt(params['variance'])
+                normal_dist = random.gauss(mean, std)
+
+                delegate['bills'][name] = {
+                    'position': normal_dist,
+                    'direction': params['direction']
+                }
+
+            store['delegates'].append(delegate)
+
     elif store['majority_position']['type'] == "uniform":
-        a = store['majority_position']['params']['a']
-        b = math.sqrt(store['majority_position']['params']['b'])
-        for delegate in range(store['majority']):
-            uniform_dist = random.uniform(a, b)
-            store['delegates'].append({'party': 'majority', 'position': uniform_dist})
+        for d in range(store['majority']):
+            delegate = {'party': 'majority', 'bills': {}}
+
+            for name, params in store['majority_position']['bills'].items():
+                a = params['a']
+                b = params['b']
+                uniform_dist = random.uniform(a, b)
+
+                delegate['bills'][name] = {
+                    'position': uniform_dist,
+                    'direction': params['direction']
+                }
+
+            store['delegates'].append(delegate)
+            print(delegate)
 
     if store['minority_position']['type'] == "constant":
         pass
     elif store['minority_position']['type'] == "normal":
-        mean = store['minority_position']['params']['mean']
-        std = math.sqrt(store['minority_position']['params']['variance'])
-        for delegate in range(store['minority']):
-            normal_dist = random.gauss(mean, std)
-            store['delegates'].append({'party': 'minority', 'position': normal_dist})
+        for d in range(store['minority']):
+            delegate = {'party': 'minority', 'bills': {}}
+
+            for name, params in store['minority_position']['bills'].items():
+                mean = params['mean']
+                std = math.sqrt(params['variance'])
+                normal_dist = random.gauss(mean, std)
+
+                delegate['bills'][name] = {
+                    'position': normal_dist,
+                    'direction': params['direction']
+                }
+
+            store['delegates'].append(delegate)
+
     elif store['minority_position']['type'] == "uniform":
-        a = store['minority_position']['params']['a']
-        b = math.sqrt(store['minority_position']['params']['b'])
-        for delegate in range(store['minority']):
-            uniform_dist = random.uniform(a, b)
-            store['delegates'].append({'party': 'minority', 'position': uniform_dist})
+        for d in range(store['minority']):
+            delegate = {'party': 'minority', 'bills': {}}
+
+            for name, params in store['minority_position']['bills'].items():
+                a = params['a']
+                b = params['b']
+                uniform_dist = random.uniform(a, b)
+
+                delegate['bills'][name] = {
+                    'position': uniform_dist,
+                    'direction': params['direction']
+                }
+
+            store['delegates'].append(delegate)
+            print(delegate)
 
     # print(store['delegates'])
 
@@ -146,36 +259,35 @@ def plot_minority():
     fig.show()
 
 
-def plot_min_maj():
+def plot_min_maj(bill):
     import plotly.graph_objects as go
     import pandas as pd
 
     minority_delegates = []
     for delegate in store['delegates']:
         if delegate['party'] == 'minority':
-            minority_delegates.append(delegate['position'])
+            minority_delegates.append(delegate['bills'][bill]['position'])
     x0 = pd.DataFrame(minority_delegates, columns=['position'])
 
     majority_delegates = []
     for delegate in store['delegates']:
         if delegate['party'] == 'majority':
-            majority_delegates.append(delegate['position'])
+            majority_delegates.append(delegate['bills'][bill]['position'])
     x1 = pd.DataFrame(majority_delegates, columns=['position'])
 
     fig = go.Figure()
     fig.add_trace(go.Histogram(x=x0.transpose().to_numpy()[0]))
     fig.add_trace(go.Histogram(x=x1.transpose().to_numpy()[0]))
 
-    for bill in store['bills']:
-        fig.add_vline(
-            x=bill['position'],
-            line_width=4,
-            line_dash="dash",
-            line_color="green",
-            annotation_text=f"{bill['name']} Bill",
-            annotation_position="top left",
-            annotation=dict(font_size=20, font_family="Times New Roman")
-        )
+    fig.add_vline(
+        x=50.0,
+        line_width=4,
+        line_dash="dash",
+        line_color="green",
+        annotation_text=f"{bill} Bill",
+        annotation_position="top left",
+        annotation=dict(font_size=20, font_family="Times New Roman")
+    )
     # The two histograms are drawn on top of another
     # Overlay both histograms
     fig.update_layout(barmode='overlay')
@@ -222,11 +334,14 @@ if __name__ == '__main__':
 
     # simulate_simple()
     # simulation_distorted()
-    simulation_individual_simple_normal()
+    # simulation_individual_simple_normal()
+    # simulation_individual_proportional_normal()
+    simulation_individual_maximize_normal()
     # print(json.dumps(store, sort_keys=False, indent=4))
     f = open('store.json', 'w')
     f.write(json.dumps(store, sort_keys=False, indent=4))
 
     # plot_majority()
     # plot_minority()
-    plot_min_maj()
+    for bill in store['bills']:
+        plot_min_maj(bill['name'])
